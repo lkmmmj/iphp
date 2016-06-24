@@ -78,9 +78,11 @@ function real_ip(){
 
 function ip(){
 	static $cip = null;
-	if($cip == null){
+	if($cip === null){
 		if($_SERVER["HTTP_X_FORWARDED_FOR"] && $_SERVER["HTTP_X_FORWARDED_FOR"]!='unknown'){
 			$cip = $_SERVER["HTTP_X_FORWARDED_FOR"];
+			$cip = explode(',', $cip);
+			$cip = trim($cip[0]);
 		}else if($_SERVER["REMOTE_ADDR"] && $_SERVER["REMOTE_ADDR"]!='unknown'){
 			$cip = $_SERVER["REMOTE_ADDR"];
 		}else{
@@ -116,7 +118,9 @@ function _widget($name, $params=array()){
 
 // $$params_or_http_code: array | int
 function _redirect($url, $params_or_http_code=array()){
-	App::$controller->layout = false;
+	if(App::$controller){
+		App::$controller->layout = false;
+	}
 	App::$finish = true;
 	$http_code = 302;
 	if(is_array($params_or_http_code)){
@@ -125,8 +129,9 @@ function _redirect($url, $params_or_http_code=array()){
 		$url = _url($url);
 		$http_code = intval($params_or_http_code);
 	}
-	header("Location: $url", true, $http_code);
-	App::_break();
+	@header("Location: $url", true, $http_code);
+	throw new AppRedirectException($url, $http_code);
+	// App::_break();
 }
 
 function _image($url){
@@ -210,5 +215,11 @@ function _days_until_now($date){
 }
 
 function _throw($msg, $code=0){
+	if(is_object($msg) && (is_a($msg, 'Exception') || is_subclass_of($msg, 'Exception'))){
+		if($code === 0){
+			$code = $msg->getCode();
+		}
+		throw new Exception($msg->getMessage(), $code);
+	}
 	throw new Exception($msg, $code);
 }

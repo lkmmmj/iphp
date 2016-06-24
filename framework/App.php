@@ -6,6 +6,7 @@ class App{
 	static $finish = false;
 	static $config = array();
 	static $version = '';
+	static $asset_md5 = array();
 	static $base_url = null;
 
 	// view 的渲染结果先保存在此变量中
@@ -26,12 +27,18 @@ class App{
 	}
 
 	static function init(){
-		$version_file = APP_PATH . '/../version';
-		if(file_exists($version_file)){
-			self::$version = trim(@file_get_contents($version_file));
+		$md5_file = APP_PATH . '/../assets.json';
+		if(file_exists($md5_file)){
+			self::$asset_md5 = @json_decode(@file_get_contents($md5_file), true);
+			if(!is_array(self::$asset_md5)){
+				self::$asset_md5 = array();
+			}
+		}else{
+			$version_file = APP_PATH . '/../version';
+			if(file_exists($version_file)){
+				self::$version = trim(@file_get_contents($version_file));
+			}
 		}
-		// before any exception
-		self::$context = new Context();
 		
 		$config_file = APP_PATH . '/config/config.php';
 		if(!file_exists($config_file)){
@@ -62,34 +69,23 @@ class App{
 	}
 	
 	static function run(){
-		try{
-			return self::_run();
-		}catch(Exception $e){
-			if(App::$controller && App::$controller->is_ajax){
-				$code = $e->getCode();
-				$msg = $e->getMessage();
-				if(!strlen($msg)){
-					$msg = 'error';
-				}
-			}else{
-				return self::error_handle($e);
-			}
-		}
-	}
-	
-	static function _run(){
+		// before any exception
+		self::$context = new Context();
+
 		$code = 1;
 		$msg = '';
 		$data = null;
-
-		ob_start();
-		App::init();
-		ob_clean();
+		
 		try{
-			$data = self::execute();
+			$data = self::_run();
 		}catch(AppBreakException $e){
 			return;
+		}catch(AppRedirectException $e){
+			$url = $e->getMessage();
+			@header("Location: $url", true, $e->getCode());
+			return;
 		}catch(Exception $e){
+			ob_clean();
 			if(App::$controller && App::$controller->is_ajax){
 				$code = $e->getCode();
 				$msg = $e->getMessage();
@@ -147,6 +143,19 @@ class App{
 				_view();
 			}
 		}
+	}
+	
+	static function _run(){
+		if(base_path() == 'index.php'){
+			_redirect('');
+		}
+
+		ob_start();
+		App::init();
+		ob_clean();
+
+		$data = self::execute();
+		return $data;
 	}
 
 	private static function execute(){
@@ -211,7 +220,7 @@ class App{
 		}else if($code == 403){
 			header('Content-Type: text/html; charset=utf-8', true, 403);
 		}else if($code == 200){
-			//
+			header('Content-Type: text/html; charset=utf-8', true, 200);
 		}else{
 			header('Content-Type: text/html; charset=utf-8', true, 500);
 		}
@@ -255,6 +264,13 @@ class App{
 class AppBreakException extends Exception
 {
 	function __construct($msg='', $code=1){
+		parent::__construct($msg, $code);
+	}
+}
+
+class AppRedirectException extends Exception
+{
+	function __construct($msg='', $code=302){
 		parent::__construct($msg, $code);
 	}
 }

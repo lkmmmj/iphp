@@ -38,14 +38,8 @@ class Model
 		return $this->$name;
 	}
 
-	static function get($id, $fields=array()){
-		if(!empty($fields)){
-			$f_str = Db::build_in_string($fields);
-			$sql = "select {$f_str} from `{".static::table()".}` where `id`='{$id}'";
-			$row = self::db()->get($sql);
-		}else{
-			$row = self::db()->load(static::table(), $id);
-		}
+	static function get($id){
+		$row = self::db()->load(static::table(), $id);
 		if(!$row){
 			return null;
 		}

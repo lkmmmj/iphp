@@ -130,7 +130,12 @@ class Mysql{
 	
 	public function get_num($sql){
 		$row = $this->get($sql, 'array');
-		return $row? (int)$row[0] : 0;
+		if($row){
+			$row = array_values($row);
+			return (int)$row[0];
+		}else{
+			return 0;
+		}
 	}
 
 	/**
@@ -287,6 +292,7 @@ class Mysql{
 	}
 
 	function escape_like_string($str){
+		$str = $this->escape($str);
 		$find = array('%', '_');
 		$replace = array('\%', '\_');
 		$str = str_replace($find, $replace, $str);
