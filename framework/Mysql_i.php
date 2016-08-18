@@ -9,15 +9,22 @@ class Mysql_i{
 	var $query_list = array();
 	public $query_count = 0;
 	var $readonly = false;
+	var $db_config;
 
 	public function __construct($c){
 		if(!isset($c['port'])){
 			$c['port'] = '3306';
 		}
-		$this->conn = new mysqli($c['host'], $c['username'], $c['password'], $c['dbname'], $c['port']);
-		if($this->conn->connect_error){
+		$this->db_config = $c;
+		$this->conn = @mysqli_connect($c['host'], $c['username'], $c['password'], $c['dbname'], $c['port']);
+		if(!$this->conn){
+			Logger::error('connect db error: ' . mysqli_connect_error());
 			throw new Exception('connect db error');
 		}
+		// $this->conn = new mysqli($c['host'], $c['username'], $c['password'], $c['dbname'], $c['port']);
+		// if($this->conn->connect_error){
+		// 	throw new Exception('connect db error');
+		// }
 		if($c['charset']){
 			$this->conn->set_charset($c['charset']);
 		}
@@ -56,11 +63,15 @@ class Mysql_i{
 		$etime = microtime(true);
 		$time = number_format(($etime - $stime) * 1000, 2);
 		$ro = $this->readonly? '[RO]' : '[RW]';
-		$log = "{$ro} {$time} $sql";
+		$c = $this->db_config;
+		$log = "{$c['dbname']} {$c['username']} {$ro} {$time} $sql";
 		if(defined('ENV') && ENV == 'dev'){
 			$this->query_list[] = $log;
 		}
-		#Logger::debug($log);
+		Logger::debug($log);
+		if($time > 200){
+			Logger::debug($log);
+		}
 		return $result;
 	}
 	
@@ -162,7 +173,7 @@ class Mysql_i{
 	 */
 	function load($table, $id, $field='id'){
 		$id = $this->escape($id);
-		$sql = "select * from `{$table}` where `{$field}`='{$id}'";
+		$sql = "select * from `{$table}` where `{$field}`='{$id}' limit 1";
 		$row = $this->get($sql);
 		return $row;
 	}

@@ -5,6 +5,8 @@ class Db{
 	private static $config = array();
 	private static $readonly = false;
 	private static $load_balance = false;
+	private static $readonly_db_pool = array();
+	private static $db_pool = array();
 
 	function __construct(){
 		throw new Exception("Static class");
@@ -45,23 +47,24 @@ class Db{
 	}
 
 	static function instance(){
+		$_dbname = self::$config['dbname'];
 		if(self::$readonly){
-			static $readonly_db = null;
-			if($readonly_db === null){
+			if(empty(self::$readonly_db_pool) || empty(self::$readonly_db_pool[$_dbname])){
 				if(isset(self::$config['readonly_db'])){
 					$readonly_db = new Mysql_i(self::$config['readonly_db']);
 					$readonly_db->readonly = true;
+					self::$readonly_db_pool[$_dbname] = $readonly_db;
 				}
 			}			
-			if($readonly_db){
-				return $readonly_db;
+			if(!empty(self::$readonly_db_pool[$_dbname])){
+				return self::$readonly_db_pool[$_dbname];
 			}
 		}
-		static $db = null;
-		if($db === null){
+		if(empty(self::$db_pool) || empty(self::$db_pool[$_dbname])){
 			$db = new Mysql_i(self::$config);
+			self::$db_pool[$_dbname] = $db;
 		}
-		return $db;
+		return self::$db_pool[$_dbname];
 	}
 	
 	static function query($sql){
